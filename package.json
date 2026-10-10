@@ -1,0 +1,6 @@
+{
+  "name": "vk-classic-workspace",
+  "private": true,
+  "scripts": {"test": "node --test tests/*.test.cjs", "pack": "python3 tools/package.py"},
+  "devDependencies": {"jsdom": "^29.0.0"}
+}
