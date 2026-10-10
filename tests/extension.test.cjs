@@ -20,12 +20,12 @@ function harness(html = shell, initial = {}, options = {}) {
         set: async value => { const old = stored; stored = value.vkClassicSettings; for (const listener of [...listeners]) listener({ vkClassicSettings: { newValue: stored, oldValue: old } }, 'local'); }
       }
     },
-    runtime: { onMessage: { addListener: listener => messages.add(listener) } },
+    runtime: { getManifest: () => ({ version: '1.2.0' }), onMessage: { addListener: listener => messages.add(listener) } },
     tabs: { query: async () => [{ id: 1 }], sendMessage: async () => ({ active: true }) }
   };
   const set = value => dom.window.chrome.storage.local.set({ vkClassicSettings: value });
   dom.window.eval(read('settings.js'));
-  if (!options.popup) dom.window.eval(read('content.js'));
+  if (!options.popup) { dom.window.eval(read('diagnostics.js')); dom.window.eval(read('content.js')); }
   return { dom, window: dom.window, document: dom.window.document, set, messages, finishRead: value => resolveGet(value), stored: () => stored, close: () => dom.window.close() };
 }
 
@@ -220,5 +220,140 @@ test('OwnerHeader adapts through internal wrappers and survives hydrated replace
     assert.equal(newRow.getAttribute('data-vk-classic-profile-row'), 'true');
     await h.set({ enabled: false });
     assert.equal(newRow.hasAttribute('data-vk-classic-profile-row'), false);
+  } finally { h.close(); }
+});
+
+test('Real HorizontalCell test id is on its inner link: only the OUTER row becomes a grid', async () => {
+  const h = harness(shell.replace('<div class="ProfileHeader">', '<div data-testid="profile-narrow-column"><div id="friends-row"><div class="vkuiHorizontalCell__host"><a data-testid="profile-friends-list"><div class="vkuiHorizontalCell__image"></div></a></div><div class="vkuiHorizontalCell__host"><a data-testid="profile-friends-list"><div class="vkuiHorizontalCell__image"></div></a></div></div></div><div class="ProfileHeader">'));
+  try {
+    await wait(25);
+    assert.equal(h.document.querySelectorAll('[data-vk-classic-friends-grid]').length, 1);
+    assert.equal(h.document.querySelector('[data-vk-classic-friends-grid]').id, 'friends-row');
+    assert.equal(h.document.querySelectorAll('.vkuiHorizontalCell__host[data-vk-classic-friend-cell]').length, 2);
+    assert.equal(h.document.querySelectorAll('.vkuiHorizontalCell__host[data-vk-classic-friends-grid]').length, 0);
+  } finally { h.close(); }
+});
+
+test('Nested SplitCol wrappers receive separate wall and narrow roles; stale roles are removed', async () => {
+  const html = shell.replace('<div class="ProfileHeader">', '<div id="profile_redesigned"><div id="inner-row"><div id="wall-wrapper" class="vkuiSplitCol__host"><div class="Profile__column"></div></div><div id="narrow-wrapper" class="vkuiSplitCol__host"><div class="vkuiSplitCol__fixedInner"><aside data-testid="profile-narrow-column"></aside></div></div></div></div><div class="ProfileHeader">');
+  const h = harness(html);
+  try {
+    await wait(25);
+    assert.equal(h.document.querySelector('[data-vk-classic-wall-slot]').id, 'wall-wrapper');
+    assert.equal(h.document.querySelector('[data-vk-classic-narrow-slot]').id, 'narrow-wrapper');
+    assert.equal(h.document.querySelector('.vkuiSplitCol__fixedInner').hasAttribute('data-vk-classic-narrow-inner'), true);
+    h.document.querySelector('[data-testid="profile-narrow-column"]').remove();
+    await wait(150);
+    assert.equal(h.document.querySelectorAll('[data-vk-classic-profile-columns], [data-vk-classic-wall-slot], [data-vk-classic-narrow-slot], [data-vk-classic-narrow-inner]').length, 0);
+  } finally { h.close(); }
+});
+
+test('Current StoryBlock is detected after lazy insertion and responds to the story preference', async () => {
+  const h = harness(shell, {}, { url: 'https://vk.ru/feed' });
+  try {
+    await wait(25);
+    h.document.querySelector('#page_body').insertAdjacentHTML('beforeend', '<div class="StoryBlock__noIslandsContainer--PQXwt"><div data-testid="story-create"></div></div>');
+    await wait(150);
+    const style = h.document.createElement('style'); style.textContent = read('classic.css'); h.document.head.append(style);
+    const story = h.document.querySelector('[data-vk-classic-stories-block]');
+    assert.equal(h.window.getComputedStyle(story).display, 'none');
+    await h.set({ hideStories: false });
+    assert.notEqual(h.window.getComputedStyle(story).display, 'none');
+    await h.set({ hideStories: true });
+    assert.equal(h.window.getComputedStyle(story).display, 'none');
+  } finally { h.close(); }
+});
+
+test('Feed sidebar option marks the containing branch, restores it, and expands layout when kept', async () => {
+  const html = shell.replace('<div class="ProfileHeader">', '<div id="feed-layout"><div class="wide_column"><div id="feed_rows"></div></div><div class="narrow_column"><div data-testid="rightmenu"></div></div></div><div class="ProfileHeader">');
+  const h = harness(html, {}, { url: 'https://vk.ru/feed' });
+  try {
+    await wait(25);
+    const style = h.document.createElement('style'); style.textContent = read('classic.css'); h.document.head.append(style);
+    const sidebar = h.document.querySelector('.narrow_column');
+    assert.equal(sidebar.hasAttribute('data-vk-classic-feed-aside'), true);
+    assert.equal(h.window.getComputedStyle(sidebar).display, 'none');
+    await h.set({ hideFeedSidebar: false });
+    assert.notEqual(h.window.getComputedStyle(sidebar).display, 'none');
+    assert.equal(h.document.documentElement.style.getPropertyValue('--vkc-width'), '1040px');
+    await h.set({ enabled: false });
+    assert.equal(sidebar.hasAttribute('data-vk-classic-feed-aside'), false);
+  } finally { h.close(); }
+});
+
+test('Messenger keeps adequate space instead of applying the narrow profile width', async () => {
+  const h = harness(shell, {}, { url: 'https://vk.ru/im/channels/-123?entrypoint=channel' });
+  try {
+    await wait(25);
+    assert.equal(h.document.documentElement.dataset.vkClassicPage, 'messages');
+    assert.equal(h.document.documentElement.style.getPropertyValue('--vkc-width'), '1040px');
+  } finally { h.close(); }
+});
+
+test('Layout diagnostics never include text, media, links, dynamic identifiers or form values', async () => {
+  const secret = 'private-secret-789-xyz';
+  const html = shell + `<div id="unrelated-${secret}"><p>${secret}</p></div>`;
+  const h = harness(html);
+  try {
+    await wait(25);
+    const body = h.document.querySelector('#page_body');
+    body.insertAdjacentHTML('beforeend', `<div id="user-${secret}" title="${secret}" class="${secret}"><a href="https://vk.ru/${secret}" aria-label="${secret}">${secret}</a><input value="${secret}"><img src="https://example.com/${secret}"><script>${secret}</script><iframe src="https://example.com/${secret}"></iframe></div>`);
+    const before = h.document.body.innerHTML;
+    const scopes = Object.fromEntries([...h.document.documentElement.attributes].map(a => [a.name, a.value]));
+    let report;
+    for (const listener of h.messages) listener({ type: 'VK_CLASSIC_DIAGNOSTIC' }, {}, result => report = result.report);
+    assert.equal(report.schema, 'vk-classic-layout/1');
+    assert.equal(report.version, '1.2.0');
+    assert.equal(report.current.length, report.native.length);
+    assert.ok(report.current.length > 10);
+    const serialized = JSON.stringify(report);
+    assert.doesNotMatch(serialized, new RegExp(secret));
+    assert.doesNotMatch(serialized, /https?:|src|aria-label|outerHTML|textContent/);
+    assert.match(serialized, /"isolated":true/);
+    assert.equal(h.document.body.innerHTML, before);
+    assert.deepEqual(Object.fromEntries([...h.document.documentElement.attributes].map(a => [a.name, a.value])), scopes);
+  } finally { h.close(); }
+});
+
+test('Diagnostic error restores every scope even if measuring native layout fails', async () => {
+  const h = harness();
+  try {
+    await wait(25);
+    const before = h.document.body.innerHTML;
+    const scopes = Object.fromEntries([...h.document.documentElement.attributes].map(a => [a.name, a.value]));
+    const original = h.window.getComputedStyle;
+    h.window.getComputedStyle = element => {
+      if (!h.document.documentElement.hasAttribute('data-vk-classic-enabled')) throw new Error('measurement error');
+      return original(element);
+    };
+    let result;
+    for (const listener of h.messages) listener({ type: 'VK_CLASSIC_DIAGNOSTIC' }, {}, reply => result = reply);
+    assert.ok(result.error);
+    assert.equal(h.document.body.innerHTML, before);
+    assert.deepEqual(Object.fromEntries([...h.document.documentElement.attributes].map(a => [a.name, a.value])), scopes);
+  } finally { h.close(); }
+});
+
+test('Popup exports a diagnostic locally without extra permissions or network requests', async () => {
+  const h = harness(read('popup.html'), {}, { popup: true });
+  try {
+    let download, object;
+    h.window.URL.createObjectURL = blob => { object = blob; return 'blob:local-report'; };
+    h.window.URL.revokeObjectURL = () => {};
+    h.window.HTMLAnchorElement.prototype.click = function () { download = { href: this.href, file: this.download }; };
+    h.window.chrome.tabs.sendMessage = async (_id, message) => message.type === 'VK_CLASSIC_DIAGNOSTIC'
+      ? { report: { schema: 'vk-classic-layout/1', page: 'feed', version: '1.2.0', structure: {} } }
+      : { active: true, page: 'feed', storiesFound: 1 };
+    h.window.eval(read('popup.js')); await wait(25);
+    assert.equal(h.document.querySelector('header img'), null);
+    h.document.querySelector('#diagnostic').click(); await wait(25);
+    assert.equal(download.file, 'vk-classic-diagnostic-feed.json');
+    assert.equal(download.href, 'blob:local-report');
+    assert.ok(object.size > 50);
+    assert.equal(h.document.querySelector('#diagnostic').disabled, false);
+    assert.match(h.document.querySelector('#diagnostic-status').textContent, /Загрузка JSON начата/);
+    assert.equal(h.document.querySelector('#diagnostic-download').download, download.file);
+    assert.equal(h.document.querySelector('#diagnostic-download').hidden, false);
+    assert.match(h.document.querySelector('#stories-status').textContent, /скрыт/);
   } finally { h.close(); }
 });

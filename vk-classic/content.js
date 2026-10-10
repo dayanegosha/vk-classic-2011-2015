@@ -7,10 +7,11 @@
   const root = document.documentElement;
   const menuSelector = '[data-testid="leftmenuitem"] a[href], .LeftMenu__itemLink, #side_bar .left_row, #side_bar a, #layout_sidebar .LeftMenu__itemLink';
   const labelSelector = '[data-testid="leftmenuitem-text"], .LeftMenu__itemLabel, .left_label';
-  const attributes = ["enabled", "square", "menu", "stories", "sidebar", "profile"];
+  const attributes = ["enabled", "square", "menu", "stories", "sidebar", "profile", "page"];
   const labelled = new Set();
   const accessibleLabels = new Map();
   const adapted = new Map();
+  let marked;
   let settings = normalize();
   let observer;
   let timer;
@@ -31,9 +32,13 @@
       "/fave": "Мои закладки", "/docs": "Мои документы"
     };
     if (byPath[path]) return byPath[path];
-    if (/^\/albums(?:-?\d+)?$/.test(path) || path === "/photos") return "Мои фотографии";
+    if (/^\/im\//.test(path)) return "Мои сообщения";
+    if (/^\/(?:albums|photos)(?:-?\d+)?$/.test(path) || path === "/photo") return "Мои фотографии";
     if (/^\/audios(?:-?\d+)?$/.test(path) || path === "/audio" || path === "/music") return "Мои аудиозаписи";
-    if (/^\/videos(?:-?\d+)?$/.test(path) || path === "/video") return "Мои видеозаписи";
+    if (/^\/videos(?:-?\d+)?$/.test(path) || path === "/video" || path === "/video_for_you") return "Мои видеозаписи";
+    const menuId = (link.closest('[data-testid="leftmenuitem"]') || link).id;
+    const byId = { l_pr: "Моя страница", l_ph: "Мои фотографии", l_vid: "Мои видеозаписи", l_aud: "Мои аудиозаписи", l_msg: "Мои сообщения" };
+    if (byId[menuId]) return byId[menuId];
     if (link.id === "l_pr" || link.closest("#l_pr") || link.getAttribute("data-testid") === "leftmenu-profile") return "Моя страница";
     const label = link.querySelector(labelSelector)?.textContent.trim();
     if (["Моя страница", "Мой профиль", "Профиль"].includes(label)) return "Моя страница";
@@ -86,6 +91,8 @@
   function mark(element, role) {
     if (!element) return;
     const name = `data-vk-classic-${role}`;
+    if (!marked.has(element)) marked.set(element, new Set());
+    marked.get(element).add(name);
     let original = adapted.get(element);
     if (!original) { original = new Map(); adapted.set(element, original); }
     if (!original.has(name)) original.set(name, element.getAttribute(name) === "true" ? null : element.getAttribute(name));
@@ -99,8 +106,37 @@
     }
     adapted.clear();
   }
+  function pruneAdapters() {
+    for (const [element, values] of adapted) {
+      if (!element.isConnected) { adapted.delete(element); continue; }
+      for (const [name, original] of values) if (!marked.get(element)?.has(name)) {
+        if (element.getAttribute(name) === "true") {
+          if (original === null) element.removeAttribute(name);
+          else element.setAttribute(name, original);
+        }
+        values.delete(name);
+      }
+      if (!values.size) adapted.delete(element);
+    }
+  }
+  function pageKind() {
+    if (/^\/(?:im|messenger)(?:\/|$)/.test(location.pathname)) return "messages";
+    if (/^\/feed(?:\/|$)/.test(location.pathname)) return "feed";
+    return document.querySelector('#profile_redesigned, [data-testid="profile-header"], .ProfileHeader') ? "profile" : "other";
+  }
+  function columns(main, aside, boundary) {
+    if (!main || !aside || main.contains(aside) || aside.contains(main)) return null;
+    let row = main.parentElement;
+    while (row && row !== boundary && !row.contains(aside)) row = row.parentElement;
+    if (!row || !row.contains(aside)) return null;
+    const branch = element => {
+      while (element.parentElement !== row) element = element.parentElement;
+      return element;
+    };
+    return { row, main: branch(main), aside: branch(aside) };
+  }
   function enhanceComponents() {
-    for (const element of adapted.keys()) if (!element.isConnected) adapted.delete(element);
+    marked = new Map();
     for (const row of document.querySelectorAll('[data-testid="leftmenuitem"]')) {
       const text = row.querySelector('[data-testid="leftmenuitem-text"]');
       const link = text?.closest('a[href]');
@@ -141,16 +177,31 @@
     }
     const wall = document.querySelector('#profile_redesigned .Profile__column');
     const narrow = document.querySelector('[data-testid="profile-narrow-column"], [data-testid="profile-narrow-column-empty"]');
-    if (wall && narrow) {
-      let row = wall.parentElement;
-      while (row && row !== document.body && !row.contains(narrow)) row = row.parentElement;
-      if (row && row !== document.body) {
-        mark(row, "profile-columns");
-        let branch = narrow;
-        while (branch.parentElement !== row) branch = branch.parentElement;
-        mark(branch, "narrow-slot");
+    const profileColumns = columns(wall, narrow, document.querySelector('#profile_redesigned'));
+    if (profileColumns) {
+      mark(profileColumns.row, "profile-columns");
+      mark(profileColumns.main, "wall-slot");
+      mark(profileColumns.aside, "narrow-slot");
+      for (let inner = narrow; inner !== profileColumns.aside; inner = inner.parentElement) mark(inner, "narrow-inner");
+    }
+    for (const cell of document.querySelectorAll('[data-testid^="profile-friends-list"]')) {
+      const host = cell.closest('.vkuiHorizontalCell__host') || cell;
+      mark(host, "friend-cell");
+      mark(host.parentElement, "friends-grid");
+    }
+    for (const block of document.querySelectorAll('[class*="StoryBlock__noIslandsContainer--"], [class*="StoriesBlockFeedSkeleton__root--"]')) mark(block, "stories-block");
+    if (pageKind() === "feed") {
+      const body = document.querySelector('#page_body');
+      const main = body?.querySelector('.wide_column, #feed_rows, #feed_wall, .feed_posts, .FeedPage__content, [data-testid="post"], .post');
+      const aside = body?.querySelector('.narrow_column, #feed_right_column, .FeedRightColumn, [data-testid="feed-sidebar"], #feed_filters, [data-testid="rightmenu"]');
+      const feedColumns = columns(main, aside, body);
+      if (feedColumns) {
+        mark(feedColumns.row, "feed-columns");
+        mark(feedColumns.main, "feed-main");
+        mark(feedColumns.aside, "feed-aside");
       }
     }
+    pruneAdapters();
   }
 
   function detectShell() {
@@ -175,7 +226,9 @@
     root.dataset.vkClassicStories = String(settings.hideStories);
     root.dataset.vkClassicSidebar = String(settings.hideFeedSidebar);
     root.dataset.vkClassicProfile = String(settings.classicProfile);
-    root.style.setProperty("--vkc-width", `${settings.width}px`);
+    root.dataset.vkClassicPage = pageKind();
+    const needsColumns = pageKind() === "messages" || (pageKind() === "feed" && !settings.hideFeedSidebar);
+    root.style.setProperty("--vkc-width", `${needsColumns ? Math.max(1040, settings.width) : settings.width}px`);
     root.style.setProperty("--vkc-font-size", `${settings.fontSize}px`);
     enhanceMenu();
     enhanceComponents();
@@ -206,7 +259,12 @@
   chrome.runtime.onMessage.addListener((message, _sender, reply) => {
     if (message?.type === "VK_CLASSIC_STATUS") {
       apply();
-      reply({ active, shellFound, enabled: settings.enabled });
+      reply({ active, shellFound, enabled: settings.enabled, version: chrome.runtime.getManifest?.().version || "1.2.0", page: pageKind(),
+        storiesFound: document.querySelectorAll('[data-vk-classic-stories-block], #stories_feed_wrap, .stories_feed_wrap, .StoriesFeed, [data-testid="profile-narratives-block"]').length });
+    } else if (message?.type === "VK_CLASSIC_DIAGNOSTIC") {
+      apply();
+      try { reply({ report: VKClassicDiagnostics.capture({ active, shellFound, settings, page: pageKind() }) }); }
+      catch { reply({ error: "Не удалось сохранить структуру страницы. Обнови ВК и попробуй ещё раз." }); }
     }
   });
   // Bind listeners before the asynchronous read so updates during startup aren't missed.

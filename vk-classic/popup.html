@@ -2,7 +2,7 @@
 <html lang="ru">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ВК Классика</title><link rel="stylesheet" href="popup.css"></head>
 <body>
-  <header><img class="classic-logo" src="assets/classic-logo.gif" width="145" height="42" alt="ВКонтакте"><span class="year">2011–2015</span></header>
+  <header><strong class="popup-title">ВК Классика</strong><span class="year">2011–2015</span></header>
   <main>
     <div class="intro"><div><h1>Тот самый ВКонтакте.</h1><p>Знакомый вид. Твои нынешние друзья.</p></div></div>
     <label class="master"><span><b>Классический дизайн</b><small id="status" role="status">Проверяем текущую вкладку…</small></span><input id="enabled" type="checkbox" role="switch" checked><span class="switch" aria-hidden="true"></span></label>
@@ -12,13 +12,19 @@
       <label class="option"><input id="squareAvatars" type="checkbox" checked><span>Квадратные аватарки</span></label>
       <label class="option"><input id="classicMenu" type="checkbox" checked><span>Меню «Моя страница / Мои друзья»</span></label>
       <label class="option"><input id="classicProfile" type="checkbox" checked><span>Фото профиля слева, без обложки</span></label>
-      <label class="option"><input id="hideStories" type="checkbox" checked><span>Скрыть истории</span></label>
+      <label class="option"><input id="hideStories" type="checkbox" checked><span>Скрыть истории<small id="stories-status"></small></span></label>
       <label class="option"><input id="hideFeedSidebar" type="checkbox" checked><span>Убрать правую колонку в новостях</span></label>
     </fieldset>
     <p class="hint">Настройки применяются сразу на vk.ru и vk.com. После первой установки обнови уже открытый ВК.</p>
     <div class="bottom"><button id="reset" type="button">Вернуть настройки</button><span id="saved" role="status" aria-live="polite"></span></div>
+  <section class="diagnostic">
+      <button id="diagnostic" type="button">Сохранить диагностику страницы</button>
+      <p>Файл содержит структуру блоков и размеры. Без текста, изображений, адресов страниц и данных форм. Сохраняется на твой компьютер.</p>
+      <small id="diagnostic-status" role="status" aria-live="polite"></small>
+      <a id="diagnostic-download" hidden>Скачать JSON повторно</a>
+    </section>
   </main>
-  <footer>Без аналитики и сторонних серверов.<br>Неофициальное расширение.</footer>
+  <footer>Без аналитики и сторонних серверов.<br>Версия 1.2.0 · неофициальное расширение.</footer>
   <script src="settings.js"></script><script src="popup.js"></script>
 </body>
 </html>

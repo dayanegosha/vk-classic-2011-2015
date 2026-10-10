@@ -251,7 +251,7 @@ html[data-vk-classic-enabled="true"] #page_wrap :where(div, span, p, a, button, 
   line-height: 1.3 !important;
   letter-spacing: normal !important;
 }
-html[data-vk-classic-enabled="true"] :is(#page_wrap, #page_wrap [class*="vkui"], #page_wrap [class*="vkit-"]) {
+html[data-vk-classic-enabled="true"] :is(#page_wrap, #page_wrap [class*="vkui--"]) {
   --vkui--font_family_accent: Tahoma, Arial, Verdana, sans-serif !important;
   --vkui--font_family_base: Tahoma, Arial, Verdana, sans-serif !important;
   --vk-sans-display: Tahoma !important;
@@ -388,9 +388,9 @@ html[data-vk-classic-enabled="true"] #page_wrap :is([data-testid="profile-edit-b
 html[data-vk-classic-enabled="true"] #page_wrap :is([data-testid="profile-edit-button"], [data-testid="profile-send-message-button"], [data-testid="profile-add-friend-button"]) :is(span, div) { color: #fff !important; }
 html[data-vk-classic-profile="true"] [data-vk-classic-profile-columns] {
   display: grid !important; grid-template-columns: 200px minmax(0, 1fr) !important;
-  gap: 14px !important; align-items: start !important;
+  gap: 14px !important; align-items: start !important; height: auto !important;
 }
-html[data-vk-classic-profile="true"] [data-vk-classic-profile-columns] > .Profile__column {
+html[data-vk-classic-profile="true"] [data-vk-classic-wall-slot] {
   grid-column: 2 !important; grid-row: 1 !important; width: 100% !important; min-width: 0 !important;
 }
 html[data-vk-classic-profile="true"] [data-vk-classic-narrow-slot] {
@@ -422,15 +422,70 @@ html[data-vk-classic-stories="true"] [data-testid="profile-narratives-block"] { 
   html[data-vk-classic-profile="true"] [data-testid="profile-avatar"],
   html[data-vk-classic-profile="true"] [data-testid="profile-avatar"] > :first-child { width: 140px !important; min-width: 140px !important; height: 140px !important; }
 }
-/* Current friends lists use four horizontal cells; wrap them inside the old 200px column. */
-html[data-vk-classic-profile="true"] [data-testid="profile-narrow-column"] :has(> [data-testid^="profile-friends-list"]) {
+
+/* The real VKUI SplitCol has fixed/minimum dimensions on internal wrappers. */
+html[data-vk-classic-profile="true"] :is([data-vk-classic-wall-slot], [data-vk-classic-narrow-slot], [data-vk-classic-narrow-inner]) {
+  height: auto !important; min-height: 0 !important;
+  min-width: 0 !important; min-inline-size: 0 !important;
+  max-width: 100% !important; max-inline-size: 100% !important;
+  flex: initial !important; transform: none !important;
+  box-sizing: border-box !important; margin: 0 !important;
+}
+html[data-vk-classic-profile="true"] [data-vk-classic-wall-slot] {
+  width: auto !important; inline-size: auto !important; position: relative !important;
+}
+html[data-vk-classic-profile="true"] [data-vk-classic-narrow-slot] {
+  width: 200px !important; inline-size: 200px !important; position: relative !important;
+}
+html[data-vk-classic-profile="true"] [data-vk-classic-narrow-inner] {
+  width: 100% !important; inline-size: 100% !important; position: static !important;
+}
+html[data-vk-classic-profile="true"] :is([data-vk-classic-wall-slot], [data-vk-classic-narrow-slot]) .vkuiSplitCol__fixedInner {
+  position: static !important; inset: auto !important; width: 100% !important;
+  min-width: 0 !important; max-width: 100% !important; height: auto !important;
+  transform: none !important; overflow: visible !important;
+}
+html[data-vk-classic-profile="true"] [data-vk-classic-wall-slot] .Profile__column {
+  width: 100% !important; min-width: 0 !important; max-width: 100% !important;
+}
+/* HorizontalCell puts its test id on the link INSIDE its host. */
+html[data-vk-classic-profile="true"] [data-vk-classic-friends-grid] {
   display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 9px 4px !important; padding: 8px !important;
+  gap: 9px 4px !important; padding: 8px !important; width: 100% !important;
+  min-width: 0 !important; box-sizing: border-box !important;
 }
-html[data-vk-classic-profile="true"] #page_wrap [data-testid^="profile-friends-list"] {
-  width: auto !important; min-width: 0 !important; padding: 0 !important;
+html[data-vk-classic-profile="true"] [data-vk-classic-friend-cell] {
+  --vkui_internal--cell_width: 100% !important;
+  --vkui_internal--side_cell_gap: 0px !important;
+  width: auto !important; min-width: 0 !important; max-width: 100% !important;
+  inline-size: auto !important; min-inline-size: 0 !important;
+  padding: 0 !important; display: block !important;
 }
-html[data-vk-classic-profile="true"] [data-testid^="profile-friends-list"] .vkitInternalRichAvatar {
-  width: 50px !important; height: 50px !important; min-width: 0 !important;
+html[data-vk-classic-profile="true"] [data-vk-classic-friend-cell] :is(.vkuiHorizontalCell__body, [data-testid^="profile-friends-list"]) {
+  display: block !important; width: 100% !important; max-width: 100% !important;
+  min-width: 0 !important; padding: 0 !important; text-align: center !important;
 }
-html[data-vk-classic-profile="true"] [data-testid="profile-narrow-column"] :is(img, div, section) { max-width: 100% !important; min-width: 0 !important; }
+html[data-vk-classic-profile="true"] [data-vk-classic-friend-cell] .vkitInternalRichAvatar {
+  width: 50px !important; height: 50px !important; min-width: 50px !important; margin: auto !important;
+}
+html[data-vk-classic-profile="true"] .vkuiHorizontalCell__content { padding: 3px 0 !important; }
+html[data-vk-classic-stories="true"] :is([data-vk-classic-stories-block], [class*="StoryBlock__noIslandsContainer--"], [class*="StoriesBlockFeedSkeleton__root--"]) { display: none !important; }
+html[data-vk-classic-page="feed"][data-vk-classic-sidebar="true"] [data-vk-classic-feed-aside] { display: none !important; }
+html[data-vk-classic-page="feed"][data-vk-classic-sidebar="true"] [data-vk-classic-feed-columns] {
+  display: grid !important; grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0 !important; width: 100% !important; height: auto !important;
+}
+html[data-vk-classic-page="feed"][data-vk-classic-sidebar="true"] :is([data-vk-classic-feed-main], [data-vk-classic-feed-main] .wide_column, [data-vk-classic-feed-main] #feed_rows) {
+  width: 100% !important; inline-size: 100% !important; max-width: 100% !important;
+  min-width: 0 !important; min-inline-size: 0 !important; flex: 1 1 auto !important;
+  margin-inline: 0 !important; box-sizing: border-box !important;
+}
+/* Form fields follow the complete light theme, including the messenger search. */
+html[data-vk-classic-enabled="true"] #page_body :is(input[type="search"], .vkuiSearch__field, .vkuiSearch__input) {
+  color: #222 !important; background-color: #f1f3f5 !important; border-radius: 2px !important;
+}
+html[data-vk-classic-enabled="true"] #page_body :is(input, textarea)::placeholder { color: #777 !important; }
+@media (max-width: 760px) {
+  html[data-vk-classic-profile="true"] [data-vk-classic-narrow-slot] { width: 140px !important; inline-size: 140px !important; }
+  html[data-vk-classic-profile="true"] [data-vk-classic-friends-grid] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}

@@ -28,7 +28,7 @@ for size in [16, 32, 48, 128]:
     (extension / "icons" / f"{size}.png").write_bytes(png)
 
 manifest = json.loads((extension / "manifest.json").read_text())
-files = ["manifest.json", "settings.js", "content.js", "classic.css", "popup.html", "popup.css", "popup.js", "README.md", "assets/classic-logo.gif"] + [f"icons/{size}.png" for size in [16, 32, 48, 128]]
+files = ["manifest.json", "settings.js", "content.js", "diagnostics.js", "light-theme.css", "classic.css", "popup.html", "popup.css", "popup.js", "README.md", "assets/classic-logo.gif"] + [f"icons/{size}.png" for size in [16, 32, 48, 128]]
 destination = root / "VK-Classic-2011-2015.zip"
 with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED) as archive:
     for name in files:
