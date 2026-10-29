@@ -1,4 +1,4 @@
-"""Generate local PNG icons and a portable, dependency-free extension archive."""
+"""Build extension icons and ZIP archive."""
 import json
 from pathlib import Path
 import struct
@@ -9,7 +9,6 @@ root = Path(__file__).resolve().parents[1]
 extension = root / "vk-classic"
 (extension / "icons").mkdir(exist_ok=True)
 
-# Tiny bitmap glyph: native vector/code asset, with no external fonts or images.
 glyph = ["11110", "10001", "10001", "11110", "10001", "10001", "11110"]
 def chunk(kind, data):
     return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
