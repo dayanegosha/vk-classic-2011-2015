@@ -64,7 +64,7 @@
       download.href = url;
       download.download = anchor.download;
       download.hidden = false;
-      target.textContent = "Загрузка JSON начата. Передай файл из загрузок в этот чат.";
+      target.textContent = "Загрузка JSON начата. Файл можно передать разработчику.";
     } catch (error) {
       target.textContent = error?.message || "Не удалось сохранить. Обнови вкладку ВК и повтори.";
     } finally {
